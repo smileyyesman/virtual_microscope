@@ -1,0 +1,17 @@
+# Python 관련
+*.pyc
+__pycache__/
+
+# 환경 설정 파일
+.env
+
+# 가상환경 폴더
+/home/all0/venvs/
+
+# Django static 및 media files
+static/
+media/
+
+# IDE 설정 파일
+.vscode/
+.idea/
