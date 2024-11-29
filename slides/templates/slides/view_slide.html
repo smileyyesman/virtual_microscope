@@ -1,212 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Slide Viewer with Advanced Annotation</title>
+    <meta charset=""UTF-8">
+    <title>SlideViewer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/3.0.0/openseadragon.min.js"></script>
     <style>
-        #annotation-canvas {
+        #right-arrow-overlay {
+            width: 0;
+            height: 0;
+            border-top: 10px solid transparent; /* 화살표 위 */
+            border-bottom: 10px solid transparent; /* 화살표 아래 */
+            border-left: 20px solid red; /* 화살표 몸체 */
             position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-        }
-        #controls {
-            margin-top: 10px;
-        }
-        #controls > * {
-            margin-right: 10px;
         }
     </style>
 </head>
 <body>
-    <div id="openseadragon-viewer" style="width: 800px; height: 600px;"></div>
-    <div id="controls">
-        <button id="toggle-draw">Enable Draw Mode</button>
-        <button id="toggle-erase">Enable Erase Mode</button>
-        <input type="color" id="color-picker" value="#ff0000">
-        <input type="range" id="line-width" min="1" max="20" value="2">
-        <span id="line-width-value">2</span>
-        <button id="undo">Undo</button>
-        <button id="redo">Redo</button>
-        <button id="save-annotation">Save Annotation</button>
-        <button id="clear-annotation">Clear Annotation</button>
-    </div>
+    <div id="openseadragon-viewer" style="width:800px; height: 600px;"></div>
+
+    <div id="right-arrow-overlay"></div>
+
     <script>
         const viewer = OpenSeadragon({
             id: "openseadragon-viewer",
-            tileSources: "{{ slide_url }}",
-            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/3.0.0/images/",
+            tileSources: "{{slide_url}}",
+            prefixUrl:"https://cdnjs.cloudflare.com/ajax/libs/openseadragon/3.0.0/images/",
             showNavigator: true,
         });
 
-        let isDrawing = false;
-        let drawMode = false;
-        let eraseMode = false;
-        let lastPoint;
-        let lineColor = '#ff0000';
-        let lineWidth = 2;
-
-        const overlay = document.createElement('canvas');
-        overlay.id = 'annotation-canvas';
         viewer.addOverlay({
-            element: overlay,
-            location: new OpenSeadragon.Rect(0, 0, 1, 1)
-        });
-
-        const ctx = overlay.getContext('2d');
-
-        // 실행 취소 및 재실행을 위한 상태 배열
-        let undoStack = [];
-        let redoStack = [];
-
-        function resizeCanvas() {
-            overlay.width = viewer.viewport.getContainerSize().x;
-            overlay.height = viewer.viewport.getContainerSize().y;
-        }
-
-        viewer.addHandler('open', resizeCanvas);
-        viewer.addHandler('resize', resizeCanvas);
-        viewer.addHandler('update-viewport', resizeCanvas);
-
-        function saveState() {
-            undoStack.push(overlay.toDataURL());
-            redoStack = [];
-        }
-
-        // 마우스 이벤트 핸들러
-        function onMouseDown(e) {
-            if (!drawMode && !eraseMode) return;
-            isDrawing = true;
-            lastPoint = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(e.clientX, e.clientY));
-            saveState();
-            e.preventDefault();
-        }
-
-        function onMouseMove(e) {
-            if (!isDrawing || (!drawMode && !eraseMode)) return;
-            const currentPoint = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(e.clientX, e.clientY));
-            ctx.beginPath();
-            ctx.moveTo(lastPoint.x * overlay.width, lastPoint.y * overlay.height);
-            ctx.lineTo(currentPoint.x * overlay.width, currentPoint.y * overlay.height);
-            if (eraseMode) {
-                ctx.globalCompositeOperation = 'destination-out';
-                ctx.strokeStyle = 'rgba(0,0,0,1)';
-                ctx.lineWidth = lineWidth * 2;
-            } else {
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.strokeStyle = lineColor;
-                ctx.lineWidth = lineWidth;
-            }
-            ctx.lineCap = 'round';
-            ctx.stroke();
-            lastPoint = currentPoint;
-            e.preventDefault();
-        }
-
-        function onMouseUp(e) {
-            isDrawing = false;
-            ctx.globalCompositeOperation = 'source-over';
-            e.preventDefault();
-        }
-
-        // 그리기 모드 토글 함수
-        function toggleDrawMode() {
-            drawMode = !drawMode;
-            if (drawMode) {
-                eraseMode = false;
-                viewer.setMouseNavEnabled(false);
-                viewer.outerTracker.setTracking(false);
-                overlay.style.pointerEvents = 'auto';
-                overlay.addEventListener('mousedown', onMouseDown);
-                overlay.addEventListener('mousemove', onMouseMove);
-                overlay.addEventListener('mouseup', onMouseUp);
-            } else {
-                viewer.setMouseNavEnabled(true);
-                viewer.outerTracker.setTracking(true);
-                overlay.style.pointerEvents = 'none';
-                overlay.removeEventListener('mousedown', onMouseDown);
-                overlay.removeEventListener('mousemove', onMouseMove);
-                overlay.removeEventListener('mouseup', onMouseUp);
-            }
-            document.getElementById('toggle-draw').textContent = drawMode ? 'Disable Draw Mode' : 'Enable Draw Mode';
-            document.getElementById('toggle-erase').textContent = 'Enable Erase Mode';
-        }
-
-        // 지우개 모드 토글 함수
-        function toggleEraseMode() {
-            eraseMode = !eraseMode;
-            if (eraseMode) {
-                drawMode = false;
-                viewer.setMouseNavEnabled(false);
-                viewer.outerTracker.setTracking(false);
-                overlay.style.pointerEvents = 'auto';
-                overlay.addEventListener('mousedown', onMouseDown);
-                overlay.addEventListener('mousemove', onMouseMove);
-                overlay.addEventListener('mouseup', onMouseUp);
-            } else {
-                viewer.setMouseNavEnabled(true);
-                viewer.outerTracker.setTracking(true);
-                overlay.style.pointerEvents = 'none';
-                overlay.removeEventListener('mousedown', onMouseDown);
-                overlay.removeEventListener('mousemove', onMouseMove);
-                overlay.removeEventListener('mouseup', onMouseUp);
-            }
-            document.getElementById('toggle-erase').textContent = eraseMode ? 'Disable Erase Mode' : 'Enable Erase Mode';
-            document.getElementById('toggle-draw').textContent = 'Enable Draw Mode';
-        }
-
-        function undo() {
-            if (undoStack.length > 0) {
-                redoStack.push(overlay.toDataURL());
-                const imgData = undoStack.pop();
-                const img = new Image();
-                img.onload = function() {
-                    ctx.clearRect(0, 0, overlay.width, overlay.height);
-                    ctx.drawImage(img, 0, 0);
-                };
-                img.src = imgData;
-            }
-        }
-
-        function redo() {
-            if (redoStack.length > 0) {
-                undoStack.push(overlay.toDataURL());
-                const imgData = redoStack.pop();
-                const img = new Image();
-                img.onload = function() {
-                    ctx.clearRect(0, 0, overlay.width, overlay.height);
-                    ctx.drawImage(img, 0, 0);
-                };
-                img.src = imgData;
-            }
-        }
-
-        document.getElementById('toggle-draw').addEventListener('click', toggleDrawMode);
-        document.getElementById('toggle-erase').addEventListener('click', toggleEraseMode);
-        document.getElementById('undo').addEventListener('click', undo);
-        document.getElementById('redo').addEventListener('click', redo);
-
-        document.getElementById('color-picker').addEventListener('change', function(e) {
-            lineColor = e.target.value;
-        });
-
-        document.getElementById('line-width').addEventListener('input', function(e) {
-            lineWidth = parseInt(e.target.value);
-            document.getElementById('line-width-value').textContent = lineWidth;
-        });
-
-        document.getElementById('save-annotation').addEventListener('click', function() {
-            const dataURL = overlay.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = 'annotation.png';
-            link.href = dataURL;
-            link.click();
-        });
-
-        document.getElementById('clear-annotation').addEventListener('click', function() {
-            saveState();
-            ctx.clearRect(0, 0, overlay.width, overlay.height);
+            id: 'right-arrow-overlay',
+            location: new OpenSeadragon.Point(0.2008, 0.4778),
+            placement: OpenSeadragon.Placement.RIGHT
         });
     </script>
 </body>
